@@ -1,6 +1,8 @@
 
 import paramiko
 import Options as op
+import os
+from datetime import datetime
 
 class BaseCommClass:
     """
@@ -68,21 +70,67 @@ class RaspiStillCommClass(BaseCommClass):
     """
     Class for run raspistill on RPi
     """
-    def __init__(self, ip, user, pswd, log=False):
-        super(RaspiStillCommClass, self).__init(ip, user, pswd, log)
+    def __init__(self, ip, user, pswd, remote_dir, log=False):
+        super().__init__(ip, user, pswd, log)
         self._options = self._generateDefaultOptions()
+        self._remote_dir = remote_dir
+        self._local_img = None        
+        self._remote_img = None
+
+    def __del__(self):
+        if self._local_img is not None:
+            os.remove(self._local_img)
+        super().__del__()
 
     def _generateDefaultOptions(self):
         """
         Generates the default options for running Raspistill on remote
         """
+        res = []
+        f = lambda cmd, name, descr, ran, d: res.append( op.Option(cmd, name, descr, ran, d) ) 
+        f("-sh", "sharpness", "Set image sharpness", range(-100, 101), 0)
+        f( "-co", "contrast", "Set image contrast",range(-100, 101), 0 )
+        f( "-br", "brightness", "Set image brightness", range(0, 101), 50 )
+        f( "-sa", "saturation", "Set image saturation", range(-100,101), 0)
+        f( "-ISO", "ISO", "Set capture ISO" , range(100, 801), 400)
+        # this one is not working on RPi (probably only for raspivid)
+        #f( "-vs", "vidstab", "Turn on video stabilisation", [0, 1], 0)
+        f( "-ev", "EV", "Set EV compensation", range(-10, 11), 0 )
+        f( "-ex", "exposure", "Set exposure mode", ["off", "auto", "night", "nightpreview", "backlight", "spotlight", "sports", "snow", "beach", "verylong", "fixedfps", "antishake", "fireworks"], "off")
+        f("-fli", "flicker", "Set flicker avoid mode", ["off", "auto", "50hz", "60hz"], "off")
+        f("-awb", "awb", "Set AWB mode", ["off", "auto", "sun", "cloud", "shade", "tungsten", "fluorescent", "incandescent", "flash", "horizon", "greyworld"], "off")
+        f("-ifx", "imxfx", "Set image effect", ["none", "negative", "solarise", "sketch", "denoise", "emboss", "oilpaint", "hatch", "gpen", "pastel", "watercolour", "film", "blur", "saturation", "colourswap", "washedout", "posterise", "colourpoint", "colourbalance", "cartoon"], "none")
+        # Currently  colour effect is not dealt with because it requires a pair of numbers
+        # f("-cfx", "colfx", "Set colour effect" (U:V)
+        f("-mm", "metering", "Set metering mode", ["average", "spot", "backlit", "matrix"], "average")
+        f("-rot", "rotation", "Set image rotation", [0, 90, 180, 270], 0)
+        #f("-hf", "hflip", "Set horizontal flip", [0, 1], 0)
+        #f("-vf", "vflip", "Set vertical flip", [0, 1], 0)
+        # Currently roi is not dealt with because it requires a quadruple of numbers
+        # f("-roi", "roi", "Set region of interest (x,y,w,d as normalised coordinates [0.0-1.0])
+        # f("-ss", "shutter", "Set shutter speed in microseconds", (0, 200000000)
+        # -awbg, --awbgains	: Set AWB gains - AWB mode must be off
+        f("-drc", "DRC", "Set DRC Level", ["off", "low", "med", "high"], "off")
+        #-st, --stats	: Force recomputation of statistics on stills capture pass
+        #-a, --annotate	: Enable/Set annotate flags or text
+        #-3d, --stereo	: Select stereoscopic mode
+        #-dec, --decimate	: Half width/height of stereo image
+        #-3dswap, --3dswap	: Swap camera order for stereoscopic
+        #-ae, --annotateex	: Set extra annotation parameters (text size, text colour(hex YUV), bg colour(hex YUV), justify, x, y)
+        #-ag, --analoggain	: Set the analog gain (floating point)
+        #-dg, --digitalgain	: Set the digital gain (floating point)
+        #f("-set", "log settings", "Log camera settings", [0, 1], 0)
+        #-fw, --focus	: Draw a window with the focus FoM value on the image.
+        return set(res)
 
-    def _getRunCommand(self):
+    def _getCaptureCommand(self):
         """
         Generates the command for running Raspistill on remove with currently set options.
         """
-        res = ""
-
+        s = " "
+        res = "raspistill -o" + s + self._remote_img + s + "-v"
+        for option in self._options:
+            res += s + option.command + s + str(option.value)
         return res
 
     def getOptions(self):
@@ -97,6 +145,27 @@ class RaspiStillCommClass(BaseCommClass):
         """
         self._options = value
 
+    def capture(self):
+        """
+        Capture image.
+        Immediately transfers captured image to host machine and deletes it on remote.
+        """
+        if self._local_img is not None:
+            os.remove(self._local_img)
+            self._local_img = None
+
+        im_name = "img_" + str(datetime.now()).replace(" ", "_").replace(":", "-") + ".jpeg"
+        self._local_img = os.path.join(os.getcwd(), im_name)
+        self._remote_img = self._remote_dir + "/" + im_name
+        cmd = self._getCaptureCommand()
+        self._runCommand(cmd)
+        self._get(self._remote_img, self._local_img)
+        
+        if self._remote_img is not None:
+            self._runCommand("rm " + self._remote_img)
+            self._remote_img = None
+
+
 
 if __name__ == '__main__':
     import os
@@ -105,6 +174,11 @@ if __name__ == '__main__':
     parser.add_argument('ip', help='IP address of RPI')
     parser.add_argument('pswd', help='Password for RPi')
     parser.add_argument('user', help='Username for RPi')
+    parser.add_argument('remote_dir', help='Workspace for this program')
     args = parser.parse_args()    
-    c = BaseCommClass(args.ip, args.user, args.pswd, log=True)
-    c._get('/home/pi/experiments/image.jpeg', os.path.join(os.getcwd(), 'image.jpeg'))
+    c = RaspiStillCommClass(args.ip, args.user, args.pswd, args.remote_dir, log=True)
+    try:
+        c.capture()
+        del c
+    except:
+        del c

@@ -4,7 +4,7 @@ class Option:
     """
     Class which encapsulates command line options on remote.
     """
-    def __init__(self, name, command, possible_vals, default):
+    def __init__(self, command, name, descr, possible_vals, default):
         """
         :param name:    name of option
         :param command: command passed to raspistill when running it from command line
@@ -13,6 +13,7 @@ class Option:
         """
         self.name = name
         self.command = command
+        self.description = descr
         self.possible_vals = possible_vals
         self.value = default
 
