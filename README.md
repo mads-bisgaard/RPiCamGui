@@ -1,2 +1,2 @@
 # RPiCamGui
-A small Python package GUI to contorl the Raspberry Pi HQ camera remotely
+A small Python package GUI to control the Raspberry Pi HQ camera remotely
