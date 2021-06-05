@@ -87,30 +87,31 @@ class RaspiStillCommClass(BaseCommClass):
         Generates the default options for running Raspistill on remote
         """
         res = []
-        f = lambda cmd, name, descr, ran, d: res.append( op.Option(cmd, name, descr, ran, d) ) 
-        f("-sh", "sharpness", "Set image sharpness", (-100, 100), 0)
-        f( "-co", "contrast", "Set image contrast", (-100, 100), 0 )
-        f( "-br", "brightness", "Set image brightness", (0, 100), 50 )
-        f( "-sa", "saturation", "Set image saturation", (-100,100), 0)
-        f( "-ISO", "ISO", "Set capture ISO" , (100, 800), 400)
+        fi = lambda cmd, name, descr, lb, ub, d: res.append( op.IntOption(cmd, name, descr, lb, ub, d) ) 
+        fg = lambda cmd, name, descr, ran, d: res.append( op.GenericOption(cmd, name, descr, ran, d) ) 
+        fi("-sh", "sharpness", "Set image sharpness", -100, 100, 0)
+        fi( "-co", "contrast", "Set image contrast", -100, 100, 0 )
+        fi( "-br", "brightness", "Set image brightness", 0, 100, 50 )
+        fi( "-sa", "saturation", "Set image saturation", -100,100, 0)
+        fi( "-ISO", "ISO", "Set capture ISO" , 100, 800, 400)
         # this one is not working on RPi (probably only for raspivid)
         #f( "-vs", "vidstab", "Turn on video stabilisation", [0, 1], 0)
-        f( "-ev", "EV", "Set EV compensation", (-10, 10), 0 )
-        f( "-ex", "exposure", "Set exposure mode", ["off", "auto", "night", "nightpreview", "backlight", "spotlight", "sports", "snow", "beach", "verylong", "fixedfps", "antishake", "fireworks"], "off")
-        f("-fli", "flicker", "Set flicker avoid mode", ["off", "auto", "50hz", "60hz"], "off")
-        f("-awb", "awb", "Set AWB mode", ["off", "auto", "sun", "cloud", "shade", "tungsten", "fluorescent", "incandescent", "flash", "horizon", "greyworld"], "off")
-        f("-ifx", "imxfx", "Set image effect", ["none", "negative", "solarise", "sketch", "denoise", "emboss", "oilpaint", "hatch", "gpen", "pastel", "watercolour", "film", "blur", "saturation", "colourswap", "washedout", "posterise", "colourpoint", "colourbalance", "cartoon"], "none")
+        fi( "-ev", "EV", "Set EV compensation", -10, 10, 0 )
+        fg( "-ex", "exposure", "Set exposure mode", ["off", "auto", "night", "nightpreview", "backlight", "spotlight", "sports", "snow", "beach", "verylong", "fixedfps", "antishake", "fireworks"], "off")
+        fg("-fli", "flicker", "Set flicker avoid mode", ["off", "auto", "50hz", "60hz"], "off")
+        fg("-awb", "awb", "Set AWB mode", ["off", "auto", "sun", "cloud", "shade", "tungsten", "fluorescent", "incandescent", "flash", "horizon", "greyworld"], "off")
+        fg("-ifx", "imxfx", "Set image effect", ["none", "negative", "solarise", "sketch", "denoise", "emboss", "oilpaint", "hatch", "gpen", "pastel", "watercolour", "film", "blur", "saturation", "colourswap", "washedout", "posterise", "colourpoint", "colourbalance", "cartoon"], "none")
         # Currently  colour effect is not dealt with because it requires a pair of numbers
         # f("-cfx", "colfx", "Set colour effect" (U:V)
-        f("-mm", "metering", "Set metering mode", ["average", "spot", "backlit", "matrix"], "average")
-        f("-rot", "rotation", "Set image rotation", [0, 90, 180, 270], 0)
+        fg("-mm", "metering", "Set metering mode", ["average", "spot", "backlit", "matrix"], "average")
+        fg("-rot", "rotation", "Set image rotation", [0, 90, 180, 270], 0)
         #f("-hf", "hflip", "Set horizontal flip", [0, 1], 0)
         #f("-vf", "vflip", "Set vertical flip", [0, 1], 0)
         # Currently roi is not dealt with because it requires a quadruple of numbers
         # f("-roi", "roi", "Set region of interest (x,y,w,d as normalised coordinates [0.0-1.0])
         # f("-ss", "shutter", "Set shutter speed in microseconds", (0, 200000000)
         # -awbg, --awbgains	: Set AWB gains - AWB mode must be off
-        f("-drc", "DRC", "Set DRC Level", ["off", "low", "med", "high"], "off")
+        fg("-drc", "DRC", "Set DRC Level", ["off", "low", "med", "high"], "off")
         #-st, --stats	: Force recomputation of statistics on stills capture pass
         #-a, --annotate	: Enable/Set annotate flags or text
         #-3d, --stereo	: Select stereoscopic mode
@@ -132,6 +133,17 @@ class RaspiStillCommClass(BaseCommClass):
         for option in self._options:
             res += s + option.command + s + str(option.value)
         return res
+
+    def setOption(self, name, value):
+        """
+        Sets a named option to a given value
+        """
+        tmp = op.Option(None, name, None, None)
+        if tmp in self._options:
+            option = tmp.getSetBudy()
+            option.value = value
+        else:
+            raise Exception('Received non-existing option.')
 
     def getOptions(self):
         """
