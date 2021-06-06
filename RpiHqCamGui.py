@@ -3,6 +3,7 @@ from tkinter import ttk
 from Communication import *
 import Options as op
 from PIL import ImageTk, Image
+from ToolTip import CreateToolTip
 
 class RpiHqCamGui:
     """
@@ -11,7 +12,7 @@ class RpiHqCamGui:
 
     def __init__(self):
         self._root = tk.Tk()
-        self._root.title = "RPi HQ Camera App"
+        self._root.title("RPi HQ Camera App")
         self._root.geometry('10000x3000')
         self._tabControl = ttk.Notebook(self._root)
         self._settingsTab = ttk.Frame(self._tabControl)
@@ -23,25 +24,24 @@ class RpiHqCamGui:
         
     def _addSettings(self, commObj):
 
-        for option in commObj.getOptions():
-            lab = ttk.Label(self._settingsTab, text=option.name).pack()
-            #tip = tk.tix.Balloon(self._settingsTab)
-            #tk.tip.bind_widget(lab, balloonmsg = option.description)
+        for ii, option in enumerate(commObj.getOptions()):
+            lab = ttk.Label(self._settingsTab, text=option.name).pack()            
             if isinstance(option, op.IntOption):
-                var = tk.StringVar(self._settingsTab, name=option.name)
-                var.set(str(option.value))
-                #var.trace('w', lambda : commObj.setOption(option.name, int(var.get())))
+                var = tk.IntVar(self._settingsTab, name=option.name)
+                var.set(option.value)
                 sb = ttk.Spinbox(self._settingsTab, width=40, from_=option.lb, to=option.ub, textvariable=var)
-                sb.bind('<<SpinboxSelected>>', lambda event: commObj.setOption(event.widget['textvariable'], int(event.widget.get())))
+                sb.bind('<<SpinboxSelected>>', lambda event: commObj.setOption(event.widget['textvariable'], event.widget.get()))
+                CreateToolTip(sb, option.description)
                 sb.pack()
                 #sb.pack(ipadx=20, pady=20)
             elif isinstance(option, op.GenericOption):
                 var = tk.StringVar(self._settingsTab, name=option.name)
                 var.set(str(option.value))
-                #var.trace('w', lambda : commObj.setOption(option.name, var.get()))
                 cb = ttk.Combobox(self._settingsTab, width=40, value=str(option.value), textvariable=var)
                 cb['values'] = tuple([str(elm) for elm in option.potential_values])
+                cb.current(option.potential_values.index(option.value))
                 cb.bind('<<ComboboxSelected>>', lambda event: commObj.setOption(event.widget['textvariable'], event.widget.get()))
+                CreateToolTip(cb, option.description)
                 cb.pack()
                 #cb.pack(ipadx=20, pady=20)
             else:
