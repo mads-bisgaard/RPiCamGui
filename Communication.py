@@ -73,11 +73,13 @@ class RaspiStillCommClass(BaseCommClass):
     def __init__(self, ip, user, pswd, remote_dir, log=False):
         super().__init__(ip, user, pswd, log)
         self._options = self._generateDefaultOptions()
-        self._remote_dir = remote_dir
+        self._sftp.chdir(remote_dir) #make sure we are in correct remote dir
         self._local_img = None        
-        self._remote_img = None
+        self._remote_img = 'img.jpeg'
 
     def __del__(self):
+        if self._remote_img is not None:
+            self._sftp.remove(self._remote_img)
         if self._local_img is not None:
             os.remove(self._local_img)
         super().__del__()
@@ -124,7 +126,7 @@ class RaspiStillCommClass(BaseCommClass):
         #-fw, --focus	: Draw a window with the focus FoM value on the image.
         return set(res)
 
-    def _getCaptureCommand(self):
+    def getCaptureCommand(self):
         """
         Generates the command for running Raspistill on remove with currently set options.
         """
@@ -168,15 +170,9 @@ class RaspiStillCommClass(BaseCommClass):
 
         im_name = "img_" + str(datetime.now()).replace(" ", "_").replace(":", "-") + ".jpeg"
         self._local_img = os.path.join(os.getcwd(), im_name)
-        self._remote_img = self._remote_dir + "/" + im_name
-        cmd = self._getCaptureCommand()
+        cmd = self.getCaptureCommand()
         self._runCommand(cmd)
         self._get(self._remote_img, self._local_img)
-        
-        if self._remote_img is not None:
-            self._runCommand("rm " + self._remote_img)
-            self._remote_img = None
-
 
 
 if __name__ == '__main__':

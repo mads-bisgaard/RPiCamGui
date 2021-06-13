@@ -17,45 +17,65 @@ class RpiHqCamGui:
         self._settingsFrame = ttk.Frame(self._root)
         self._picFrame = ttk.Frame(self._root)
         self._pic = tk.Label(self._picFrame, image='')
-        self._settingsFrame.pack(expand=1, fill="both")
-        self._picFrame.pack(expand=1, fill="both")
+        self._settingsFrame.pack()
+        self._picFrame.pack()
         self._comObj = RaspiStillCommClass(ip, user, pswd, remote_dir, log=log)
+        # Every setting corresponds to one variable in GUI.
+        # self._optVars establishes this pairing
         options = self._comObj.getOptions()
         vars = [tk.IntVar(self._settingsFrame, name=opt.name) if isinstance(opt, op.IntOption) else tk.StringVar(self._settingsFrame, name=opt.name) for opt in options]
-        self._optVars = zip(options, vars)
-        
+        self._optVars = list(zip(options, vars))
+    
+    def _copyCaptureCommand(self):
+        """
+        Copies command line input in RPi to clipboad
+        """
+        cmd = self._comObj.getCaptureCommand()
+        self._root.clipboard_clear()
+        self._root.clipboard_append(cmd)
+
     def _addSettings(self):
         """
         Add all setting widgets in settings frame
         """
-        for option, var in self._optVars:
-            lab = ttk.Label(self._settingsFrame, text=option.name).pack()            
+        length = len(self._optVars)
+        r = 0
+        c = 0
+        for ii, optVar in enumerate(self._optVars):
+            option, var = optVar
+            if ii == int(length/2) + 1:
+                r = 0
+                c = 1
+            lab = ttk.Label(self._settingsFrame, text=option.name)
+            lab.grid(row=r, column=c)
+            r += 1
             if isinstance(option, op.IntOption):
                 var.set(option.value)
                 sb = ttk.Spinbox(self._settingsFrame, width=40, from_=option.lb, to=option.ub, textvariable=var)
-                sb.pack()
                 sb.bind('<<SpinboxSelected>>', lambda event: self._comObj.setOption(event.widget['textvariable'], event.widget.get()))
                 CreateToolTip(sb, option.description)
-                #sb.pack(ipadx=20, pady=20)
+                sb.grid(row=r, column=c)
+                r += 1
             elif isinstance(option, op.GenericOption):
                 var.set(str(option.value))
                 cb = ttk.Combobox(self._settingsFrame, width=40, textvariable=var)
                 cb['values'] = tuple([str(elm) for elm in option.potential_values])
                 cb.bind('<<ComboboxSelected>>', lambda event: self._comObj.setOption(event.widget['textvariable'], event.widget.get()))
                 CreateToolTip(cb, option.description)
-                cb.pack()
-                #cb.pack(ipadx=20, pady=20)
-                self._settingsFrame.update()
+                cb.grid(row=r, column=c)
+                r += 1
             else:
                 raise Exception('Encountered invalid type of option in RpiHqCamGui')
+        r += 4
+        btn = ttk.Button(self._settingsFrame, width=82, text='Copy capture command to clipboard')
+        btn.grid(row=r, column=0, columnspan=2)
+        btn.bind("<Button-1>", self._copyCaptureCommand())
             
-        
-
-    def _getNewFoto(self, commObj, event=''):
+    def _getNewFoto(self, event=''):
         self._pic.config(image="")
         self._pic.image = None
-        commObj.capture()
-        img = Image.open(commObj._local_img)
+        self._comObj.capture()
+        img = Image.open(self._comObj._local_img)
         factor = min(self._picFrame.winfo_screenwidth() / img.size[0], self._picFrame.winfo_screenheight() / img.size[1])
         img = img.resize((int(factor * img.size[0]), int(factor * img.size[1])), Image.ANTIALIAS)
         img = ImageTk.PhotoImage(img)
@@ -65,7 +85,7 @@ class RpiHqCamGui:
 
     def run(self):
         self._addSettings()
-        self._picFrame.bind('<Return>', lambda event: self._getNewFoto(commObj, event))
+        self._picFrame.bind('<Return>', lambda event: self._getNewFoto(event))
         self._root.mainloop()
 
 
