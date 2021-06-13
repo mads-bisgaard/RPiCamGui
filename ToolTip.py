@@ -7,7 +7,7 @@ class CreateToolTip(object):
     """
     def __init__(self, widget, text='widget info'):
         self.waittime = 500     #miliseconds
-        self.wraplength = 180   #pixels
+        self.wraplength = 300   #pixels
         self.widget = widget
         self.text = text
         self.widget.bind("<Enter>", self.enter)

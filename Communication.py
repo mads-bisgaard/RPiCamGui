@@ -149,7 +149,7 @@ class RaspiStillCommClass(BaseCommClass):
         """
         returns the current options
         """
-        return self._options
+        return sorted(list(self._options))
 
     def setOptions(self, value):
         """
