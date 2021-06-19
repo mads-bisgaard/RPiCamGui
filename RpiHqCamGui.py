@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+import tkinter.filedialog as filedialog
 from Communication import *
 import Options as op
 from PIL import ImageTk, Image
@@ -16,7 +17,7 @@ class RpiHqCamGui:
         self._root.geometry('10000x3000')
         self._settingsFrame = ttk.Frame(self._root)
         self._picFrame = ttk.Frame(self._root)
-        self._pic = tk.Label(self._picFrame, image='')
+        self._pic = tk.Label(self._picFrame, image=None)
         self._settingsFrame.pack()
         self._picFrame.pack()
         self._comObj = RaspiStillCommClass(ip, user, pswd, remote_dir, log=log)
@@ -25,6 +26,7 @@ class RpiHqCamGui:
         options = self._comObj.getOptions()
         vars = [tk.IntVar(self._settingsFrame, name=opt.name) if isinstance(opt, op.IntOption) else tk.StringVar(self._settingsFrame, name=opt.name) for opt in options]
         self._optVars = list(zip(options, vars))
+        self._buttons = [ ttk.Button(self._settingsFrame, width=82) for _ in range(2) ]
     
     def _copyCaptureCommand(self):
         """
@@ -34,9 +36,20 @@ class RpiHqCamGui:
         self._root.clipboard_clear()
         self._root.clipboard_append(cmd)
 
-    def _addSettings(self):
+    def _savePic(self):
         """
-        Add all setting widgets in settings frame
+        Callback for saving picture
+        """
+        if self._pic['image'] == '':
+            return
+        filename = filedialog.asksaveasfile(mode='w', defaultextension=".jpg")
+        if not filename:
+            return
+        self._pic.save(filename)
+
+    def _constructSettings(self):
+        """
+        Build the settings user interface
         """
         length = len(self._optVars)
         r = 0
@@ -66,12 +79,20 @@ class RpiHqCamGui:
                 r += 1
             else:
                 raise Exception('Encountered invalid type of option in RpiHqCamGui')
-        r += 4
-        btn = ttk.Button(self._settingsFrame, width=82, text='Copy capture command to clipboard')
-        btn.grid(row=r, column=0, columnspan=2)
-        btn.bind("<Button-1>", self._copyCaptureCommand())
-            
-    def _getNewFoto(self, event=''):
+        r += 2
+        btn1 = ttk.Button(self._settingsFrame, width=82, text='Copy capture command to clipboard')
+        btn1.grid(row=r, column=0, columnspan=2)
+        btn1.bind("<Button-1>", lambda event: self._copyCaptureCommand())
+        r += 2
+        btn2 = ttk.Button(self._settingsFrame, width=82, text='Save picture')
+        btn2.grid(row=r, column=0, columnspan=2)
+        btn2.bind("<Button-1>", lambda event: self._savePic())
+
+    def _showSettings(self):
+        self._settingsFrame.pack()
+        self._picFrame.pack_forget()
+
+    def _getAndShowFoto(self, event=''):
         self._pic.config(image="")
         self._pic.image = None
         self._comObj.capture()
@@ -81,13 +102,16 @@ class RpiHqCamGui:
         img = ImageTk.PhotoImage(img)
         self._pic.config(image=img)
         self._pic.image = img
-        self._pic.pack(fill='both', expand=1) 
+        self._picFrame.pack(fill='both', expand=1)
+        self._pic.pack(fill='both', expand=1)
+        self._settingsFrame.pack_forget()
 
     def run(self):
-        self._addSettings()
-        self._picFrame.bind('<Return>', lambda event: self._getNewFoto(event))
+        self._constructSettings()
+        self._root.bind("<Return>", lambda event: self._getAndShowFoto(event))
+        self._root.bind('<BackSpace>', lambda event: self._showSettings())
         self._root.mainloop()
-
+        del self._comObj
 
     
 if __name__ == '__main__':

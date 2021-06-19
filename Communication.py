@@ -9,7 +9,7 @@ class BaseCommClass:
     Class for handling communication between RPi and host.
     An object of this class manages an ssh connection along with SFTP file transfer between host and RPi
     """
-    def __init__(self, ip, user, pswd, log=False):
+    def __init__(self, ip, user, pswd, remote_dir, log=False):
         """
         :param log:     If set True the remote log will be written rpi_stdout and rpi_stderr
         """
@@ -17,8 +17,10 @@ class BaseCommClass:
         self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self._ssh.connect(hostname=ip, username=user, password=pswd)
         self._sftp = self._ssh.open_sftp()
+        self._sftp.chdir(remote_dir)
         self._rpi_stdout = None
         self._rpi_stderr = None
+        self._remote_dir = remote_dir
         if log:
             self._rpi_stdout = open('rpi_stdout', 'w+')
             self._rpi_stderr = open('rpi_stderr', 'w+')
@@ -33,12 +35,13 @@ class BaseCommClass:
 
     def _runCommand(self, command, stdin=None):
         """
-        Runs a command on the remote machine and logs if requested
+        Runs a command on the remote machine from the remote_dir and logs if requested
 
         :param command:     Command to run on remote machine
         :param stdin:       Command to pass to stdin on remote if needed
         """
-        ssh_stdin, ssh_stdout, ssh_stderr = self._ssh.exec_command(command)
+        cmd = 'cd ' + self._remote_dir + '; ' + command + ';'
+        ssh_stdin, ssh_stdout, ssh_stderr = self._ssh.exec_command(cmd)
         if stdin is not None:
             ssh_stdin.channel.send(stdin)
         if self._rpi_stdout is not None:
@@ -71,9 +74,8 @@ class RaspiStillCommClass(BaseCommClass):
     Class for run raspistill on RPi
     """
     def __init__(self, ip, user, pswd, remote_dir, log=False):
-        super().__init__(ip, user, pswd, log)
+        super().__init__(ip, user, pswd, remote_dir, log)
         self._options = self._generateDefaultOptions()
-        self._sftp.chdir(remote_dir) #make sure we are in correct remote dir
         self._local_img = None        
         self._remote_img = 'img.jpeg'
 
