@@ -3,13 +3,14 @@ import paramiko
 import Options as op
 import os
 from datetime import datetime
+import logging
 
 class BaseCommClass:
     """
     Class for handling communication between RPi and host.
     An object of this class manages an ssh connection along with SFTP file transfer between host and RPi
     """
-    def __init__(self, ip, user, pswd, remote_dir, log=False):
+    def __init__(self, ip, user, pswd, remote_dir, log=None):
         """
         :param log:     If set True the remote log will be written rpi_stdout and rpi_stderr
         """
@@ -21,17 +22,17 @@ class BaseCommClass:
         self._rpi_stdout = None
         self._rpi_stderr = None
         self._remote_dir = remote_dir
-        if log:
-            self._rpi_stdout = open('rpi_stdout', 'w+')
-            self._rpi_stderr = open('rpi_stderr', 'w+')
+        if log is not None:
+            logging.basicConfig(filename=__name__ + '.log', format='%(asctime)s %(message)s', filemode='w')
+            self._logger = logging.getLogger()
+            self._logger.setLevel(logging.DEBUG)
+        else:
+            self._logger = None
+
     
     def __del__(self):
         self._ssh.close()
         self._sftp.close()
-        if self._rpi_stdout is not None:
-            self._rpi_stdout.close()
-        if self._rpi_stderr is not None:
-            self._rpi_stderr.close()
 
     def _runCommand(self, command, stdin=None):
         """
@@ -44,11 +45,9 @@ class BaseCommClass:
         ssh_stdin, ssh_stdout, ssh_stderr = self._ssh.exec_command(cmd)
         if stdin is not None:
             ssh_stdin.channel.send(stdin)
-        if self._rpi_stdout is not None:
-            out = ssh_stdout.read().decode(encoding='UTF-8')
-            self._rpi_stdout.write(out)
-        if self._rpi_stderr is not None:
-            self._rpi_stderr.write(ssh_stderr.read().decode(encoding='UTF-8'))
+        if self._logger is not None:
+            self._logger.debug(ssh_stdout.read().decode(encoding='UTF-8'))
+            self._logger.critical(ssh_stderr.read().decode(encoding='UTF-8'))        
     
     def _get(self, remote_pth, local_pth):
         """
@@ -58,6 +57,8 @@ class BaseCommClass:
         :param local_pth:   path on local machine
         """
         self._sftp.get(remote_pth, local_pth)
+        if not os.path.isfile(local_pth) and self._logger is not None:
+            self._logger.critical('Could not copy ' + remote_pth + ' to ' + local_pth + ' using Paramiko SFTP client.')
 
     def _put(self, remote_pth, local_pth):
         """
@@ -146,8 +147,8 @@ class RaspiStillCommClass(BaseCommClass):
         if tmp in self._options:
             option = tmp.getSetBudy()
             option.value = value
-        else:
-            raise Exception('Received non-existing option.')
+        elif self._logger is not None:
+            self._logger.debug('option ' + option.name + ' could not be found in RaspiStillCommClass to set to value ' + str(value))
 
     def getOptions(self):
         """

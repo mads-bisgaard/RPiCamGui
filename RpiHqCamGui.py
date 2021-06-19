@@ -116,7 +116,7 @@ class RpiHqCamGui:
         """
         self._constructSettings()
         self._root.bind("<Return>", lambda event: self._getAndShowFoto(event))
-        self._root.bind('<BackSpace>', lambda event: self._showSettings())
+        self._root.bind('<Escape>', lambda event: self._showSettings())
         self._root.mainloop()
         del self
 
@@ -130,6 +130,6 @@ if __name__ == '__main__':
     parser.add_argument('user', help='Username for RPi')
     parser.add_argument('remote_dir', help='Workspace for this program')
     args = parser.parse_args()    
-    cam = RpiHqCamGui(args.ip, args.user, args.pswd, args.remote_dir, log=False)
+    cam = RpiHqCamGui(args.ip, args.user, args.pswd, args.remote_dir, log=True)
     cam.run()
 
