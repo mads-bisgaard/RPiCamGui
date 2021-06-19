@@ -101,9 +101,9 @@ class RaspiStillCommClass(BaseCommClass):
         # this one is not working on RPi (probably only for raspivid)
         #f( "-vs", "vidstab", "Turn on video stabilisation", [0, 1], 0)
         fi( "-ev", "EV", "Set EV compensation", -10, 10, 0 )
-        fg( "-ex", "exposure", "Set exposure mode", ["off", "auto", "night", "nightpreview", "backlight", "spotlight", "sports", "snow", "beach", "verylong", "fixedfps", "antishake", "fireworks"], "off")
-        fg("-fli", "flicker", "Set flicker avoid mode", ["off", "auto", "50hz", "60hz"], "off")
-        fg("-awb", "awb", "Set AWB mode", ["off", "auto", "sun", "cloud", "shade", "tungsten", "fluorescent", "incandescent", "flash", "horizon", "greyworld"], "off")
+        fg( "-ex", "exposure", "Set exposure mode", ["off", "auto", "night", "nightpreview", "backlight", "spotlight", "sports", "snow", "beach", "verylong", "fixedfps", "antishake", "fireworks"], "auto")
+        fg("-fli", "flicker", "Set flicker avoid mode", ["off", "auto", "50hz", "60hz"], "auto")
+        fg("-awb", "awb", "Set AWB mode", ["off", "auto", "sun", "cloud", "shade", "tungsten", "fluorescent", "incandescent", "flash", "horizon", "greyworld"], "auto")
         fg("-ifx", "imxfx", "Set image effect", ["none", "negative", "solarise", "sketch", "denoise", "emboss", "oilpaint", "hatch", "gpen", "pastel", "watercolour", "film", "blur", "saturation", "colourswap", "washedout", "posterise", "colourpoint", "colourbalance", "cartoon"], "none")
         # Currently  colour effect is not dealt with because it requires a pair of numbers
         # f("-cfx", "colfx", "Set colour effect" (U:V)

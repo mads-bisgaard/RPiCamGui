@@ -21,6 +21,7 @@ class RpiHqCamGui:
         self._settingsFrame.pack()
         self._picFrame.pack()
         self._comObj = RaspiStillCommClass(ip, user, pswd, remote_dir, log=log)
+        self._img = None
         # Every setting corresponds to one variable in GUI.
         # self._optVars establishes this pairing
         options = self._comObj.getOptions()
@@ -28,6 +29,9 @@ class RpiHqCamGui:
         self._optVars = list(zip(options, vars))
         self._buttons = [ ttk.Button(self._settingsFrame, width=82) for _ in range(2) ]
     
+    def __del__(self):
+        del self._comObj
+
     def _copyCaptureCommand(self):
         """
         Copies command line input in RPi to clipboad
@@ -40,12 +44,12 @@ class RpiHqCamGui:
         """
         Callback for saving picture
         """
-        if self._pic['image'] == '':
+        if self._img is None:
             return
-        filename = filedialog.asksaveasfile(mode='w', defaultextension=".jpg")
+        filename = filedialog.asksaveasfile(mode='w', defaultextension=".jpeg")
         if not filename:
             return
-        self._pic.save(filename)
+        self._img.save(filename)
 
     def _constructSettings(self):
         """
@@ -98,8 +102,8 @@ class RpiHqCamGui:
         self._comObj.capture()
         img = Image.open(self._comObj._local_img)
         factor = min(self._picFrame.winfo_screenwidth() / img.size[0], self._picFrame.winfo_screenheight() / img.size[1])
-        img = img.resize((int(factor * img.size[0]), int(factor * img.size[1])), Image.ANTIALIAS)
-        img = ImageTk.PhotoImage(img)
+        self._img = img.resize((int(factor * img.size[0]), int(factor * img.size[1])), Image.ANTIALIAS)
+        img = ImageTk.PhotoImage(self._img)
         self._pic.config(image=img)
         self._pic.image = img
         self._picFrame.pack(fill='both', expand=1)
@@ -107,11 +111,14 @@ class RpiHqCamGui:
         self._settingsFrame.pack_forget()
 
     def run(self):
+        """
+        Runs GUI. Note the RpiHqCamGui object is deleted after running this fcn.
+        """
         self._constructSettings()
         self._root.bind("<Return>", lambda event: self._getAndShowFoto(event))
         self._root.bind('<BackSpace>', lambda event: self._showSettings())
         self._root.mainloop()
-        del self._comObj
+        del self
 
     
 if __name__ == '__main__':
@@ -123,6 +130,6 @@ if __name__ == '__main__':
     parser.add_argument('user', help='Username for RPi')
     parser.add_argument('remote_dir', help='Workspace for this program')
     args = parser.parse_args()    
-    cam = RpiHqCamGui(args.ip, args.user, args.pswd, args.remote_dir, log=True)
+    cam = RpiHqCamGui(args.ip, args.user, args.pswd, args.remote_dir, log=False)
     cam.run()
 
