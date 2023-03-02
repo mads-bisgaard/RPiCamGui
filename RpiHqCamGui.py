@@ -122,7 +122,6 @@ class RpiHqCamGui:
 
     
 if __name__ == '__main__':
-    
     import argparse
     parser = argparse.ArgumentParser(description='Run Raspberry Pi HQ camera through ultra simple GUI')
     parser.add_argument('ip', help='IP address of RPI')

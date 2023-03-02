@@ -16,7 +16,10 @@ class BaseCommClass:
         """
         self._ssh = paramiko.SSHClient()
         self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self._ssh.connect(hostname=ip, username=user, password=pswd)
+        try:
+            self._ssh.connect(hostname=ip, username=user, password=pswd)
+        except ConnectionError:
+            raise Exception('Could not connect to Raspberry Pi.')
         self._sftp = self._ssh.open_sftp()
         self._sftp.chdir(remote_dir)
         self._rpi_stdout = None
