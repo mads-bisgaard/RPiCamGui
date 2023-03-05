@@ -5,7 +5,7 @@ import msgpack
 import threading
 from RPiCamInterface import Message, MessageType
 
-def request_handler(context: zmq.Context, work_url: str, control_url: str, session_id: str):
+def request_handler(context: zmq.Context, work_url: str, control_url: str):
     """
     Fcn which handles requests coming from the server entrypoint
     Args:

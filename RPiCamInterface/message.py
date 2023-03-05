@@ -7,7 +7,9 @@ import logging
 
 
 class MessageType(IntEnum):
-    KILL = 1
+    KILL_SERVER = 0
+    BEGIN_SESSION = 1
+    END_SESSION = 2
     
 
 class Message:
