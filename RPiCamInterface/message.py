@@ -42,6 +42,14 @@ class Message:
     def payload(self, p: Any) -> None:
         self._content['payload'] = p
         
+    @property
+    def session_id(self) -> str:
+        return self._content['session_id']
+    
+    @session_id.setter
+    def session_id(self, value: str) -> None:
+        self._content['session_id'] = value
+        
     def to_bytes(self) -> Any:
         return msgpack.packb(self._content)
     

@@ -6,10 +6,12 @@ import logging
 from .handler import request_handler
 from RPiCamInterface import Message, MessageType
 import time
+from typing import Optional
 
 
 
-def proxy(frontend: zmq.Socket, backend: zmq.Socket, control: zmq.Socket):
+
+def proxy(frontend: zmq.Socket, backend: zmq.Socket, control: zmq.Socket, session_id: str) -> Optional[Message]:
     """
     Simple control proxy as the one provided directly by zmq (which doesn't work for some reason)
     """
@@ -22,33 +24,30 @@ def proxy(frontend: zmq.Socket, backend: zmq.Socket, control: zmq.Socket):
         try:
             socks = dict(poller.poll())
         except KeyboardInterrupt:
-            return
+            return None
         if frontend in socks:
-            backend.send_multipart(frontend.recv_multipart())
+            msg_id, blank, msg = frontend.recv_multipart()
+            if Message.from_bytes(msg).session_id == session_id:
+                backend.send_multipart([msg_id, blank, msg])
         if backend in socks:
             frontend.send_multipart(backend.recv_multipart())
         if control in socks:
-            return
+            msg = Message.from_bytes(control.recv())
+            if msg.session_id == session_id:
+                return Message.from_bytes(control.recv())
                 
 
-def run_server(rout_port: int, control_port: int, n_threads: int = 1) -> None:
+def run_session(context: zmq.Context, rout_port: int, control_sock: zmq.Socket, session_id: str, n_threads: int = 1) -> bool:
     """
     Server which should be running on Rpi
     """
     assert n_threads > 0, 'server requires at least one thread running a worker'
-    context: zmq.Context = zmq.Context()
     
     # socket for receiving incomming requests
     rout_sock: zmq.Socket = context.socket(zmq.ROUTER) 
     rout_addr: str = f"tcp://*:{rout_port}"
     logging.info(f"binding router socket to {rout_addr}")
     rout_sock.bind(rout_addr)
-    
-    # socket for controling server 
-    control_sock: zmq.Socket = context.socket(zmq.REP) 
-    control_addr: str = f"tcp://*:{control_port}"
-    logging.info(f"binding control socket to {control_addr}")
-    control_sock.bind(control_addr)
 
     # socket for dealing requests to threads handling camera
     deal_sock: zmq.Socket = context.socket(zmq.DEALER)
@@ -63,25 +62,22 @@ def run_server(rout_port: int, control_port: int, n_threads: int = 1) -> None:
     pub_sock.bind(pub_addr)
     
     for _ in range(n_threads):
-        thread = threading.Thread(target=request_handler, args=(context, deal_addr, pub_addr))
+        thread = threading.Thread(target=request_handler, args=(context, deal_addr, pub_addr, session_id))
         thread.daemon = True
         thread.start()
     
-    proxy(rout_sock, deal_sock, control_sock)
+    control_msg = proxy(rout_sock, deal_sock, control_sock, session_id)
     
-    # terminate all sockets
-    pub_sock.send(b'')
-    while threading.activeCount() > 1:
-        time.sleep(0.1) # wait until all handler threads have terminated
-    control_sock.send(b'') # tell client server has terminated
+    if control_msg is None or control_msg.payload == "kill server":
+        # terminate all sockets
+        pub_sock.send_string("kill")
+        while threading.activeCount() > 1:
+            time.sleep(0.1) # wait until all handler threads have terminated    
 
-    rout_sock.close()
-    deal_sock.close()
-    pub_sock.close()
-    control_sock.close()
-    context.destroy()
-    logging.info('terminating server')
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    run_server(1234, 1235)
+        rout_sock.close()
+        deal_sock.close()
+        pub_sock.close()
+        logging.info('terminating server')
+        return True
+    else:
+        return False
