@@ -6,7 +6,7 @@ import logging
 from .handler import request_handler
 from RPiCamInterface import Message, MessageType
 import time
-from typing import Optional
+from typing import Optional, List
 
 
 
@@ -92,17 +92,19 @@ def run_session(rout_port: int, n_threads: int = 1) -> None:
     logging.info(f"binding pub socket to {pub_addr}")
     pub_sock.bind(pub_addr)
     
+    handlers: List[threading.Thread] = []
     for _ in range(n_threads):
         thread = threading.Thread(target=request_handler, args=(context, deal_addr, pub_addr))
         thread.daemon = True
         thread.start()
+        handlers.append(thread)
     
     proxy(rout_sock, deal_sock)
     
     # terminate all sockets
     pub_sock.send_string("kill")
-    while threading.activeCount() > 1:
-        time.sleep(0.1) # wait until all handler threads have terminated    
+    for h in handlers:
+        h.join()
 
     rout_sock.close()
     deal_sock.close()
