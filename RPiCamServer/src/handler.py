@@ -33,6 +33,7 @@ def request_handler(context: zmq.Context, work_url: str, control_url: str):
 
         if control_sock in socks:
             msg = control_sock.recv_string()
+            assert msg == "kill", f'Received invalid termination command in handler on thread {threading.current_thread().ident}'
             logging.info(f'terminating thread {threading.current_thread().ident}')
             work_sock.close()
             control_sock.close()

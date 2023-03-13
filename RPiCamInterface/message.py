@@ -1,15 +1,19 @@
 # Defined the message interface
 
 from enum import IntEnum
-from typing import Any
+from typing import Any, Optional
 import msgpack
 import logging
 
+class ExitCode(IntEnum):
+    Success = 1
+    Failure = 0
 
 class MessageType(IntEnum):
     KILL_SERVER = 0
     BEGIN_SESSION = 1
     END_SESSION = 2
+    COMMAND = 3
     
 
 class Message:
@@ -21,8 +25,10 @@ class Message:
         assert isinstance(msg, dict), 'received invalid bytes for creating Message'
         assert 'type' in msg, 'could not determine message type'
         result.type = msg['type']
-        assert 'payload' in msg, 'could not determine message payload'
-        result.payload = msg['payload']
+        if 'payload' in msg:
+            result.payload = msg['payload']
+        if 'session_id' in msg:
+            result.session_id = msg['session_id']
         return result
         
     def __init__(self):
@@ -45,7 +51,7 @@ class Message:
         self._content['payload'] = p
         
     @property
-    def session_id(self) -> str:
+    def session_id(self) -> Optional[str]:
         return self._content['session_id']
     
     @session_id.setter
