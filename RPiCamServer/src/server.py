@@ -4,7 +4,7 @@ import zmq
 import threading
 import logging
 from .handler import request_handler
-from RPiCamInterface import Message, MessageType, ExitCode
+from RPiCamInterface import Message, MessageType, ExitCode, RequestPayload, ReceivePayload
 from typing import Optional, List
 from uuid import uuid4, UUID
 
@@ -23,9 +23,9 @@ def proxy(frontend: zmq.Socket, backend: zmq.Socket) -> None:
     def update_frontend(frontend: zmq.Socket, msg_id: bytes, msg_type: MessageType, session_id: Optional[UUID], blank: bytes, exitcode: ExitCode, msg: str):
         logging.info(f'Sending message to frontend: {msg}')
         response = Message()
-        response.payload = dict({'exitcode': int(exitcode), 'msg': msg})
+        response.payload = ReceivePayload(dict({'exitcode': int(exitcode), 'msg': msg}))
         response.type = msg_type
-        response.session_id = "" if session_id is None else str(session_id)
+        response.session_id = None if session_id is None else session_id
         frontend.send_multipart([msg_id, blank, response.to_bytes()])
         
     session_id: Optional[UUID] = None

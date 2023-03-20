@@ -3,7 +3,7 @@ import logging
 import zmq
 import msgpack
 import threading
-from RPiCamInterface import Message, MessageType
+from RPiCamInterface import Message, MessageType, ReceivePayload, ExitCode
 
 def request_handler(context: zmq.Context, work_url: str, control_url: str):
     """
@@ -39,6 +39,9 @@ def request_handler(context: zmq.Context, work_url: str, control_url: str):
             control_sock.close()
             return                
         if work_sock in socks:
-            msg = work_sock.recv_multipart()
+            msg_id, blank, msg_b = work_sock.recv_multipart()
+            msg = Message.from_bytes(msg_b)
             # handle requests here
-            work_sock.send_multipart(msg)
+            msg.payload = ReceivePayload()
+            msg.payload.exitcode = ExitCode.Success
+            work_sock.send_multipart([msg_id, blank, msg.to_bytes()])
