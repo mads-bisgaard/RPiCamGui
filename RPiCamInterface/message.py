@@ -1,7 +1,7 @@
 # Defined the message interface
 
 from enum import IntEnum
-from typing import Any, Optional, Dict, Union
+from typing import Any, Optional, Dict, Union, List
 import msgpack
 from uuid import UUID
 
@@ -15,31 +15,39 @@ class MessageType(IntEnum):
     END_SESSION = 2
     COMMAND = 3
 
-class RequestPayload:
+class Payload:
+    pass
+
+class RequestPayload(Payload):
     def __init__(self, d: Dict = {}):
+        self._keys: List[str] = ['options']
         if d == {}:
-            d = {"options": {}}
-        assert "options" in d, "'options' was not in the dict"
-        self._content = {"options": {}}
+            self._content = {}
+            for key in self._keys:
+                self._content[key] = None
+        else:
+            self._content = d
     
     @property
-    def options(self) -> Dict:
-        return self._content["options"]
+    def options(self) -> Optional[Dict]:
+        return self._content['options']
     
     @options.setter
     def options(self, opts: Dict):
-        self._content["options"] = opts
+        self._content['options'] = opts
         
-class ReceivePayload:
+class ReceivePayload(Payload):
     def __init__(self, d: Dict = {}):
+        self._keys: List[str] = ['exitcode', 'msg']
         if d == {}:
-            d = {"exitcode": True, "msg": "Dummy message"}
-        assert "exitcode" in d, "'exitcode' was not in the dict"
-        assert "msg" in d, "'msg' was not in the dict"
-        self._content = d
+            self._content = {}
+            for key in self._keys:
+                self._content[key] = None
+        else:
+            self._content = d
     
     @property
-    def exitcode(self) -> ExitCode:
+    def exitcode(self) -> Optional[ExitCode]:
         return self._content["exitcode"]
     
     @exitcode.setter
@@ -58,44 +66,52 @@ class Message:
     
     @staticmethod
     def from_bytes(b: bytes) -> Any:
-        msg: Any = msgpack.unpackb(b)
+        try:
+            msg: Any = msgpack.unpackb(b)
+        except:
+            raise ValueError('received invalid bytes for creating Message')
         result: Message = Message()
         assert isinstance(msg, dict), 'received invalid bytes for creating Message'
-        assert 'type' in msg, 'could not determine message type'
-        result.type = msg['type']
-        if 'payload' in msg:
-            result._content["payload"] = msg['payload']
-        if 'session_id' in msg:
-            result.session_id = msg['session_id']
+        for key in result._keys:
+            if key in msg:
+                result._content[key] = msg[key]
         return result
         
     def __init__(self):
+        self._keys: List[str] = ['type', 'payload', 'payload_type', 'session_id']
         self._content = dict()
+        for key in self._keys:
+            self._content[key] = None
     
     @property
-    def type(self) -> MessageType:
-        return MessageType(self._content['type'])
+    def type(self) -> Optional[MessageType]:
+        try:
+            return MessageType(self._content['type'])
+        except:
+            return None
     
     @type.setter
     def type(self, t: MessageType) -> None:
         self._content['type'] = int(t)
         
     @property
-    def payload(self) -> Union[ReceivePayload, RequestPayload]:
-        if "exitcode" in self._content['payload']:
-            return ReceivePayload(self._content['payload'])
-        else:
-            return RequestPayload(self._content['payload'])
+    def payload(self) -> Optional[Union[ReceivePayload, RequestPayload]]:
+        try:
+            return globals()[self._content['payload_type']](self._content['payload'])
+        except:
+            return None
     
     @payload.setter
     def payload(self, p: Union[ReceivePayload, RequestPayload]) -> None:
+        self._content['payload_type'] = type(p).__name__
         self._content['payload'] = p._content
         
     @property
     def session_id(self) -> Optional[UUID]:
-        if isinstance(self._content['session_id'], str):
+        try:
             return UUID(self._content['session_id'])
-        return None
+        except:
+            return None
     
     @session_id.setter
     def session_id(self, value: Optional[UUID]) -> None:

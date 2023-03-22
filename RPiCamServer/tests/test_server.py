@@ -6,6 +6,7 @@ from pathlib import Path
 from RPiCamInterface import Message, MessageType, ExitCode, RequestPayload
 import zmq
 from uuid import uuid1, UUID
+from waiting import wait
 
 
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -84,3 +85,32 @@ def test_session_id(client_server_pair):
     response = Message.from_bytes(client_socket.recv())
     assert response.payload.exitcode == ExitCode.Success, "Server did not accept valid session id"    
     
+    
+def test_kill_server(client_server_pair):
+    """
+    Check that we can kill server
+    """
+    server_proc, client_socket = client_server_pair
+
+    msg = Message()
+    msg.payload = RequestPayload()
+    msg.type = MessageType.KILL_SERVER
+    client_socket.send(msg.to_bytes())
+    response = Message.from_bytes(client_socket.recv())
+    assert response.payload.exitcode == ExitCode.Failure
+    
+    msg.type = MessageType.BEGIN_SESSION
+    client_socket.send(msg.to_bytes())
+    response = Message.from_bytes(client_socket.recv())
+    assert response.payload.exitcode == ExitCode.Success
+    
+    msg.type = MessageType.KILL_SERVER
+    msg.session_id = response.session_id
+    client_socket.send(msg.to_bytes())
+    response = Message.from_bytes(client_socket.recv())
+    assert response.payload.exitcode == ExitCode.Success
+    
+    try:
+        wait(lambda: False if server_proc.poll() is None else True, timeout_seconds=5, waiting_for='server subprocess to die')    
+    except TimeoutError:
+        assert False, 'server subprocess did not die after attempting to terminate it'
