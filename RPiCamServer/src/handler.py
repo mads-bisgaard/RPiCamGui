@@ -4,6 +4,9 @@ import zmq
 import msgpack
 import threading
 from RPiCamInterface import Message, MessageType, ReceivePayload, ExitCode
+from RPiCamServer.src.camera.camera_interface import CameraInterface
+from .camera.picam import PiCam
+
 
 def request_handler(context: zmq.Context, work_url: str, control_url: str):
     """
@@ -24,6 +27,8 @@ def request_handler(context: zmq.Context, work_url: str, control_url: str):
     poller.register(work_sock, zmq.POLLIN)
     poller.register(control_sock, zmq.POLLIN)
     
+    camera = PiCam()
+    
     while True:
         
         try:
@@ -41,7 +46,10 @@ def request_handler(context: zmq.Context, work_url: str, control_url: str):
         if work_sock in socks:
             msg_id, blank, msg_b = work_sock.recv_multipart()
             msg = Message.from_bytes(msg_b)
-            # handle requests here
+            
+            stream = camera.capture()
+            
             msg.payload = ReceivePayload()
             msg.payload.exitcode = ExitCode.Success
+            msg.payload.image_stream = stream
             work_sock.send_multipart([msg_id, blank, msg.to_bytes()])

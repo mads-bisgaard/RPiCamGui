@@ -4,6 +4,8 @@ from enum import IntEnum
 from typing import Any, Optional, Dict, Union, List
 import msgpack
 from uuid import UUID
+from io import BytesIO
+
 
 class ExitCode(IntEnum):
     Success = 1
@@ -38,7 +40,7 @@ class RequestPayload(Payload):
         
 class ReceivePayload(Payload):
     def __init__(self, d: Dict = {}):
-        self._keys: List[str] = ['exitcode', 'msg']
+        self._keys: List[str] = ['exitcode', 'msg', 'image_stream']
         if d == {}:
             self._content = {}
             for key in self._keys:
@@ -61,6 +63,15 @@ class ReceivePayload(Payload):
     @msg.setter
     def msg(self, m: str) -> None:
         self._content["msg"] = m
+        
+    @property
+    def image_stream(self) -> BytesIO:
+        return self._content['image_stream']
+    
+    @image_stream.setter
+    def image_stream(self, stream: BytesIO):
+        self._content['image_stream'] = stream
+        
     
 class Message:
     
