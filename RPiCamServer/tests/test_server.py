@@ -25,8 +25,10 @@ def client_server_pair():
     req_socket = context.socket(zmq.REQ)
     try:
         req_socket.connect(f"tcp://localhost:{port}")
+        req_socket.setsockopt(zmq.RCVTIMEO, 2000) # timeout if no response after 2sec
     except:
-        raise Exception('Could not connect client socket to server in client_socket test fixture')        
+        raise Exception('Could not connect client socket to server in client_socket test fixture')
+    assert proc.poll() is None, "Server died unexpectedly"
     yield proc, lambda msg: send_receive(req_socket, msg)
     req_socket.close()
     context.destroy()
